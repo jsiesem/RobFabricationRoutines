@@ -1,0 +1,96 @@
+MODULE BrickProcedures(SYSMODULE)
+    !BrickProcedures
+    !Version 0.1 04/02/2023
+    !Author: jss
+
+    PERS tooldata curtoolvalueBR;
+    !Brick loop counter
+    PERS num loopCounter := 1;
+    PERS bool pickUpPointsDefined := TRUE;
+    PERS jointtarget SafetyPosition;
+    PERS robtarget BrickPosition1;
+    PERS robtarget BrickPosition2;
+    PERS robtarget BrickPosition3;
+    CONST num brickCount := 128;
+    VAR num bPReg1:=0;
+    VAR num bPReg2:=0;
+    VAR num bPReg3:=0;
+    VAR num xCount := 3;
+    VAR num yCount := 4;
+    ! Brick positions:
+    PERS robtarget brickPositions{brickCount};
+    
+    PROC SetPickUpGrid()
+        VAR num xOffset := 0;
+        VAR num yOffset := 0;
+        
+        loopCounter := 1;
+        TPReadFK bPReg1, "Move to SafetyPosition, press 'Done' when done", stEmpty, stEmpty, stEmpty, stEmpty, "DONE";
+        IF bPReg1 = 5 THEN
+            SafetyPosition := CJointT();
+            TPReadFK bPReg1, "Move to BrickPosition1, press 'Done' when done", stEmpty, stEmpty, stEmpty, stEmpty, "DONE";
+                IF bPReg1 = 5 THEN
+                    BrickPosition1 := CRobT();
+                    TPReadFK bPReg1, "Move to BrickPosition2, press 'Done' when done", stEmpty, stEmpty, stEmpty, stEmpty, "DONE";
+                    IF bPReg1 = 5 THEN
+                        BrickPosition2 := CRobT();
+                        TPReadFK bPReg1, "Move to BrickPosition3, press 'Done' when done", stEmpty, stEmpty, stEmpty, stEmpty, "DONE";
+                        IF bPReg1 = 5 THEN
+                            BrickPosition3 := CRobT();
+                            !CALC
+                            xOffset := (BrickPosition2.trans.X - BrickPosition1.trans.X) / xCount ;
+                            yOffset := (BrickPosition3.trans.Y - BrickPosition1.trans.Y) / yCount ;
+                            
+                            !CALC GRID
+                            FOR y FROM 1 TO yCount DO
+                                FOR x FROM 1 TO xCount DO
+                                    brickPositions{x+((y-1)*xCount)} := Offs(BrickPosition1, xOffset * (x-1), yOffset * (y-1), 0);
+                                ENDFOR
+                            ENDFOR
+                        ENDIF
+                    ENDIF
+                ENDIF
+            ENDIF
+            pickUpPointsDefined := TRUE;
+            GetSysData curtoolvalueBR;
+            WaitTime 0.5;
+            MoveL Offs(CRobT(), 0,0,100), v100, z5, curtoolvalueBR;
+            MoveAbsJ SafetyPosition, v100, z5, curtoolvalueBR;
+    ENDPROC
+    
+    PROC ResetLoopCounter()
+        loopCounter := 1;
+    ENDPROC
+    
+    PROC GetBrick()
+        !FOR i FROM 1 TO (Dim(brickPositions, 1)+1) DO
+        GetSysData curtoolvalueBR;
+        IF pickUpPointsDefined = FALSE THEN
+            setPickUpGrid;
+        ENDIF
+        
+        IF loopCounter >  (xCount * yCount) THEN !(Dim(brickPositions, 1))
+            !UIMsgBox \Header:="Please refill brick station;", "Press done when done";
+            MoveL Offs(CRobT(), 0,0,100), v100, z5, curtoolvalueBR;
+            MoveAbsJ SafetyPosition, v100, z5, curtoolvalueBR;
+            WaitTime 0.5;
+            TPReadFK bPReg1, "Please refill brick station; Press done when done", stEmpty, stEmpty, stEmpty, "CANCEL", "DONE";
+            IF bPReg1 = 4 THEN
+                 Break;
+            ELSEIF bPReg1 = 5 THEN
+                !Go to save position
+                loopCounter := 1;
+            ENDIF
+        ELSE
+            !safePos
+            MoveAbsJ [[38.0549,20.0376,17.1513,-0.000161072,42.8118,45.428],[9E+09,9E+09,9E+09,9E+09,9E+09,9E+09]]\NoEOffs, v100, z50, curtoolvalueBR;
+            SetDO DO10_1, 0;
+            MoveL brickPositions{loopCounter}, v100, z5, curtoolvalueBR;
+            MoveL Offs(brickPositions{loopCounter},0,0,-50), v100, z5, curtoolvalueBR;
+            WaitTime 1;
+            SetDO DO10_1, 1;
+            MoveL brickPositions{loopCounter}, v100, z5, curtoolvalueBR;
+            loopCounter := loopCounter +1;
+        ENDIF
+    ENDPROC
+ENDMODULE
