@@ -1,5 +1,5 @@
 # RobFabricationRoutines
- Repo for archiving miscellaneous rapid routines for an ABB robots
+ Repo for archiving miscellaneous rapid routines for ABB robots
  
 ## Brickstacking
 ### BrickProcedures
