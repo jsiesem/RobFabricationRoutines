@@ -1,8 +1,8 @@
 # RobFabricationRoutines
  Repo for archiving miscellaneous rapid routines for an ABB robots
  
-##Brickstacking
-###BrickProcedures
+## Brickstacking
+### BrickProcedures
 Procedures for eased pickup of bricks with a pneumatic gripper, saves last pickup position index and continues with subsequent ones if called.
 - setPickUpGrid
  Set grid for pickup locations
