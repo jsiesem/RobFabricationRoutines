@@ -1,0 +1,135 @@
+MODULE MarbleFunctions(SYSMODULE)
+
+
+
+    ! Predefined user data
+    !*********************
+    PERS tooldata curtoolvalue;
+    PERS robtarget posRec1;
+    !define variable to assign first position value to
+    PERS robtarget posRec2;
+    !define variable to assign second position value to
+    PERS robtarget midPos;
+    !define variable to assign third position value to
+
+    ! Declaration of numeric registers reg11...reg15
+    VAR num reg11:=0;
+    VAR num reg12:=0;
+    VAR num reg13:=0;
+    VAR num reg14:=0;
+    VAR num reg15:=0;
+
+
+
+
+    PROC onepoint()
+        VAR robtarget p1;
+
+        VAR string curtoolname;
+        GetSysData curtoolvalue\ObjectName:=curtoolname;
+        TPErase;
+        TPReadNum reg11,"Y offset distance (in mm):";
+
+        p1:=CRobT(\Tool:=curtoolvalue\WObj:=wobj0);
+        TPReadFK reg12,"Ready to execute movement?",stEmpty,stEmpty,stEmpty,"YES","CANCEL"\MaxTime:=600;
+        IF reg12=4 THEN
+            MoveL RelTool(p1,0,reg11,0), v_wiresaw, z50, curtoolvalue;
+        ENDIF
+        !End condition
+    ENDPROC
+
+    !End routine definition
+
+    PROC twopointlinear()
+        VAR robtarget posRec1;
+        VAR robtarget posRec2;
+        VAR robtarget currentPos;
+
+        TPReadFK reg12,"Move to Point 1, press 'Done' when done",stEmpty,stEmpty,stEmpty,"DONE","CANCEL"\MaxTime:=600;
+        IF reg12=4 THEN
+            posRec1:=CRobT(\Tool:=t_wiresaw\WObj:=wobj0);
+            TPReadFK reg12,"Move to Point 2, press 'Done' when done?",stEmpty,stEmpty,stEmpty,"DONE","CANCEL"\MaxTime:=600;
+            IF reg12=4 THEN
+                posRec2:=CRobT(\Tool:=t_wiresaw\WObj:=wobj0);
+                TPReadFK reg12,"Ready to execute movement?",stEmpty,stEmpty,stEmpty,"YES","CANCEL"\MaxTime:=600;
+                IF reg12=4 THEN
+                    currentPos:=CRobT(\Tool:=t_wiresaw\WObj:=wobj0);
+                    MoveL Offs(posRec2,0,0,500),v100,z50,t_wiresaw;
+                    MoveL Offs(posRec1,0,0,500),v100,z50,t_wiresaw;
+                    MoveL posRec1,v100,z10,t_wiresaw;
+                    WaitTime 2;
+                    MoveL posRec2, v_wiresaw, z10, t_wiresaw;
+                ENDIF
+                !End condition
+            ENDIF
+            !End condition
+        ENDIF
+        !End condition
+    ENDPROC
+
+    !End routine definition
+
+
+    !!!Robert Andersson via https://github.com/ernell/ABB-RAPID-UTILITY-LIBRARY/blob/master/Contributions/RobertAndersson/lib_rob.sys
+    FUNC robtarget DefMidPos(robtarget p0,robtarget p1)
+        VAR robtarget p;
+        VAR pos v;
+
+        p:=p0;
+        v:=p1.trans-p0.trans;
+        Add p.trans.x,(v.x*0.5);
+        Add p.trans.y,(v.y*0.5);
+        Add p.trans.z,(v.z*0.5);
+        RETURN p;
+    ENDFUNC
+
+    !!!
+    FUNC robtarget ApplySafetyZ(robtarget p0)
+        p0.trans.z:=400;
+        RETURN p0;
+    ENDFUNC
+
+    PROC twopointscallop()
+        !Start routine definition
+        VAR robtarget currentPos;
+        VAR robtarget posRec1SafeZ;
+        VAR robtarget posRec2SafeZ;
+        currentPos:=CRobT(\Tool:=t_wiresaw\WObj:=wobj0);
+        !Query current posiiton
+        !define variable to assign currnet position value to (before starting the defined movement)
+        !VAR robtarget midPos; !define variable to assign third position value to
+
+        TPReadFK reg12,"Move to Point 1, press 'Done' when done",stEmpty,stEmpty,stEmpty,"DONE","CANCEL"\MaxTime:=600;
+        IF reg12=4 THEN
+            !Continue IF user presses 'DONE' button
+            posRec1:=CRobT(\Tool:=t_wiresaw\WObj:=wobj0);
+            !Save current position to FIRST position variable
+            TPReadFK reg12,"Move to Point 2, press 'Done' when done?",stEmpty,stEmpty,stEmpty,"DONE","CANCEL"\MaxTime:=600;
+            IF reg12=4 THEN
+                !Continue IF user presses 'DONE' button
+                posRec2:=CRobT(\Tool:=t_wiresaw\WObj:=wobj0);
+                !Save current position to SECOND position variable
+                TPReadFK reg12,"Ready to execute movement?",stEmpty,stEmpty,stEmpty,"YES","CANCEL"\MaxTime:=600;
+                IF reg12=4 THEN
+                    !Continue IF user presses 'YES' button
+                    !posRec2SafeZ:=ApplySafetyZ(posRec2);
+                    !posRec1SafeZ:=ApplySafetyZ(posRec1);
+
+                    midPos:=DefMidPos(posRec1,posRec2);
+                    MoveL Offs(posRec2,0,0,500),v100,z50,t_wiresaw;
+                    !Move to position 200 mm above current position (as safety height to avoid collision with material)
+                    MoveL Offs(posRec1,0,0,500),v100,z50,t_wiresaw;
+                    !Move to position 200 mm above first recorded position (as safety height above starting point)
+                    MoveL posRec1,v100,z10,t_wiresaw;
+                    !Move to first recorded position
+                    WaitTime 2;
+                    MoveC Offs(midPos,0,0,-100),posRec2,v1000,z50,t_wiresaw;
+                ENDIF
+                !End condition
+            ENDIF
+            !End condition
+        ENDIF
+        !End condition
+    ENDPROC
+
+ENDMODULE
